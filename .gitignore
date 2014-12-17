@@ -1,0 +1,9 @@
+dist/
+/.dist-buildwrapper
+/*.lkshf
+/*.lkshs
+.hpc/
+/.DS_Store
+*~
+*.tix
+*.project
