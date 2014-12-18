@@ -33,7 +33,7 @@ ppPureScriptFFI idl =
 
   where
     header = vcat (map text
-        (["module WebGLRaw where",
+        (["module Control.Monad.Eff.WebGLRaw where",
         "",
         "import Control.Monad.Eff",
         "",
@@ -69,9 +69,15 @@ ppPureScriptFFI idl =
                         then empty
                         else text (argName (head tl)))
             $$ braces (nest 2 (printJavascriptRest f tl)) <> semi
-    printJavascriptRest f [] =
+    printJavascriptRest f [] | typeName (methodRetType f) == "void" =
         text "window.gl." <> text (methodName f) <> parens
             (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))) <>  semi
+                             | otherwise =
+        text "var res = window.gl." <> text (methodName f) <> parens
+            (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))) <>  semi
+        $$ text "if (res === undefined){"
+        $$ text "  throw \"Undefined in " <+> text (methodName f) <> text "\"}" <> semi
+        $$ text "return res" <> semi
     printPurescriptTypes f = text ":: forall eff." <+>
         sep ((punctuate (text "->") (map (pureScriptType . argType) (methodArgs f)))
                 ++ [(if null (methodArgs f)
