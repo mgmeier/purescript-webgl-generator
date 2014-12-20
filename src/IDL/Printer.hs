@@ -33,9 +33,11 @@ ppPureScriptFFI idl =
 
   where
     header = vcat (map text
-        (["module Control.Monad.Eff.WebGLRaw where",
+        (["-- Auto generated: don't change manually, use purescript-webgl-generator to modify!!",
+        "module Control.Monad.Eff.WebGLRaw where",
         "",
         "import Control.Monad.Eff",
+        "import Data.TypedArray",
         "",
         "foreign import data WebGl :: !",
         ""] ++ typedefs))
@@ -78,6 +80,14 @@ ppPureScriptFFI idl =
         $$ text "if (res === undefined){"
         $$ text "  throw \"Undefined in " <+> text (methodName f) <> text "\"}" <> semi
         $$ text "return res" <> semi
+    printPurescriptTypes f | typeName (methodRetType f) == "any" ||
+                             typeName (methodRetType f) == "object" =
+        text ":: forall eff ret." <+>
+        sep ((punctuate (text "->") (map (pureScriptType . argType) (methodArgs f)))
+                ++ [(if null (methodArgs f)
+                        then empty
+                        else text "->") <+> parens (
+                        text "Eff (webgl :: WebGl | eff) ret")])
     printPurescriptTypes f = text ":: forall eff." <+>
         sep ((punctuate (text "->") (map (pureScriptType . argType) (methodArgs f)))
                 ++ [(if null (methodArgs f)
@@ -88,8 +98,7 @@ ppPureScriptFFI idl =
     pureScriptType Type{typeName = t} | t == "void" = text "Unit"
     pureScriptType Type{typeName = t} | t == "boolean" = text "Boolean"
     pureScriptType Type{typeName = t} | t == "DOMString" = text "String"
-    pureScriptType Type{typeName = t} | t == "object" = text "StrangeObject"
-    pureScriptType Type{typeName = t} | t == "any" = text "StrangeAny"
+    pureScriptType Type{typeName = t} | t == "ArrayBuffer" = text "ArrayBuffer Float32"
     pureScriptType Type{typeName = t} = text t
 
 makeConstantName n = '_' : n
@@ -110,7 +119,8 @@ isUsableFunction i =
 
 standardTypes = ["GLenum", "GLboolean", "GLbitfield", "GLbyte","GLshort","GLint",
     "GLsizei","GLintptr","GLsizeiptr","GLubyte","GLushort","GLuint","GLfloat","GLclampf",
-    "sequence", "void","boolean","any","object","DOMString","HTMLCanvasElement"]
+    "sequence", "void","boolean","any","object","DOMString","HTMLCanvasElement",
+    "Float32Array","Int32Array","FloatArray","ArrayBuffer"]
 
 typedefs = [
     "type GLenum = Number",
@@ -127,7 +137,6 @@ typedefs = [
     "type GLuint = Number",
     "type GLfloat = Number",
     "type GLclampf = Number",
-    "type StrangeObject = Unit",
-    "type StrangeAny = Unit",
+    "type FloatArray = Float32Array",
     ""]
 
