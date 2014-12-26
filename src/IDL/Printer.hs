@@ -34,12 +34,12 @@ ppPureScriptFFI idl =
   where
     header = vcat (map text
         (["-- Auto generated: don't change manually, use purescript-webgl-generator to modify!!",
-        "module Control.Monad.Eff.WebGLRaw where",
+        "module Graphics.WebGLRaw where",
         "",
         "import Control.Monad.Eff",
+        "import Control.Monad.Eff.WebGL",
         "import Data.TypedArray",
         "",
-        "foreign import data WebGl :: !",
         ""] ++ typedefs))
 
     typeDecls = vcat $ map printTypeDecl $ nubBy (\t1 t2-> typeName t1 == typeName t2)
