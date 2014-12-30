@@ -55,12 +55,12 @@ ppPureScriptFFI idl =
     methods = vcat $ map printMethod $ nubBy (\t1 t2-> methodName t1 == methodName t2)
                     [c | c <- idl , isUsableFunction c]
     printMethod f =
-        text "foreign import" <+> text (methodName f) $$
+        text "foreign import" <+> text (methodName f) <> text "_" $$
             nest 2 (javascriptQuotes (printJavascript f (methodArgs f)) $$
                     nest 2 (printPurescriptTypes f))
                 $$ text ""
     printJavascript f args =
-        nest 2 (text "function" <+> text (methodName f) <>
+        nest 2 (text "function" <+> text (methodName f) <> text "_" <>
             (parens (if null (methodArgs f)
                         then empty
                         else text (argName (head (methodArgs f))))))
