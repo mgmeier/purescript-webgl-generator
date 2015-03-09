@@ -38,6 +38,7 @@ ppPureScriptFFI idl =
         "",
         "import Control.Monad.Eff",
         "import Control.Monad.Eff.WebGL",
+        "import Data.TypedArray.Types",
         "import Data.TypedArray",
         "",
         ""] ++ typedefs))
