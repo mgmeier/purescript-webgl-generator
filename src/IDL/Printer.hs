@@ -72,10 +72,10 @@ ppPureScriptFFI idl =
                         else text (argName (head tl)))
             $$ braces (nest 2 (printJavascriptRest f tl)) <> semi
     printJavascriptRest f [] | typeName (methodRetType f) == "void" =
-        text "window.gl." <> text (methodName f) <> parens
+        text "gl." <> text (methodName f) <> parens
             (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))) <>  semi
                              | otherwise =
-        text "var res = window.gl." <> text (methodName f) <> parens
+        text "var res = gl." <> text (methodName f) <> parens
             (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))) <>  semi
         $$ text "if (res === undefined){"
         $$ text "  throw \"Undefined in " <+> text (methodName f) <> text "\"}" <> semi
@@ -139,4 +139,3 @@ typedefs = [
     "type GLclampf = Number",
     "type FloatArray = Float32Array",
     ""]
-
