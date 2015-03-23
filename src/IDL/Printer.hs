@@ -38,7 +38,7 @@ ppPureScriptFFI idl =
         "",
         "import Control.Monad.Eff",
         "import Control.Monad.Eff.WebGL",
-        "import Data.TypedArray.Types",
+        "import Data.ArrayBuffer.Types",
         "import Data.TypedArray",
         "",
         ""] ++ typedefs))
@@ -99,7 +99,7 @@ ppPureScriptFFI idl =
     pureScriptType Type{typeName = t} | t == "void" = text "Unit"
     pureScriptType Type{typeName = t} | t == "boolean" = text "Boolean"
     pureScriptType Type{typeName = t} | t == "DOMString" = text "String"
-    pureScriptType Type{typeName = t} | t == "ArrayBuffer" = text "ArrayBuffer Float32"
+    pureScriptType Type{typeName = t} | t == "ArrayBuffer" = text "Float32Array"
     pureScriptType Type{typeName = t} = text t
 
 makeConstantName n = '_' : n
