@@ -13,7 +13,8 @@
 -----------------------------------------------------------------------------
 
 module IDL.Printer (
-  ppPureScriptFFI
+  ppPureScriptFFI,
+  ppPureJavaScript
 ) where
 
 import IDL.AST
@@ -40,6 +41,7 @@ ppPureScriptFFI idl =
         "import Control.Monad.Eff.WebGL",
         "import Data.ArrayBuffer.Types",
         "import Data.TypedArray",
+        "import Prelude",
         "",
         ""] ++ typedefs))
 
@@ -49,38 +51,16 @@ ppPureScriptFFI idl =
 
     constants = vcat [printConstant c | c <- idl , isEnum c]
     printConstant Enum{enumName = n,enumValue = v} =
-            (text (makeConstantName n) <+> text "::" <+> text "Number")
+            (text (makeConstantName n) <+> text "::" <+> text "Int")
         $+$ (text (makeConstantName n) <+> text "=" <+> integer v)
         $+$ text ""
 
     methods = vcat $ map printMethod $ nubBy (\t1 t2-> methodName t1 == methodName t2)
                     [c | c <- idl , isUsableFunction c]
     printMethod f =
-        text "foreign import" <+> text (methodName f) <> text "_" $$
-            nest 2 (javascriptQuotes (printJavascript f (methodArgs f)) $$
-                    nest 2 (printPurescriptTypes f))
+        text "foreign import" <+> text (methodName f) <> text "_" <>
+            nest 2 (printPurescriptTypes f)
                 $$ text ""
-    printJavascript f args =
-        nest 2 (text "function" <+> text (methodName f) <> text "_" <>
-            (parens (if null (methodArgs f)
-                        then empty
-                        else text (argName (head (methodArgs f))))))
-            $$ braces (nest 2 (printJavascriptRest f (methodArgs f))) <> semi
-    printJavascriptRest f (hd:tl) =
-        text "return" <+> text "function"
-            <> parens (if null tl
-                        then empty
-                        else text (argName (head tl)))
-            $$ braces (nest 2 (printJavascriptRest f tl)) <> semi
-    printJavascriptRest f [] | typeName (methodRetType f) == "void" =
-        text "gl." <> text (methodName f) <> parens
-            (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))) <>  semi
-                             | otherwise =
-        text "var res = gl." <> text (methodName f) <> parens
-            (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))) <>  semi
-        $$ text "if (res === undefined){"
-        $$ text "  throw \"Undefined in " <+> text (methodName f) <> text "\"}" <> semi
-        $$ text "return res" <> semi
     printPurescriptTypes f | typeName (methodRetType f) == "any" ||
                              typeName (methodRetType f) == "object" =
         text ":: forall eff ret." <+>
@@ -124,19 +104,61 @@ standardTypes = ["GLenum", "GLboolean", "GLbitfield", "GLbyte","GLshort","GLint"
     "Float32Array","Int32Array","FloatArray","ArrayBuffer"]
 
 typedefs = [
-    "type GLenum = Number",
+    "type GLenum = Int",
     "type GLboolean = Boolean",
-    "type GLbitfield = Number",
-    "type GLbyte = Number",
-    "type GLshort = Number",
-    "type GLint = Number",
-    "type GLsizei = Number",
-    "type GLintptr = Number",
-    "type GLsizeiptr = Number",
-    "type GLubyte = Number",
-    "type GLushort = Number",
-    "type GLuint = Number",
+    "type GLbitfield = Int",
+    "type GLbyte = Int",
+    "type GLshort = Int",
+    "type GLint = Int",
+    "type GLsizei = Int",
+    "type GLintptr = Int",
+    "type GLsizeiptr = Int",
+    "type GLubyte = Int",
+    "type GLushort = Int",
+    "type GLuint = Int",
     "type GLfloat = Number",
     "type GLclampf = Number",
     "type FloatArray = Float32Array",
     ""]
+
+ppPureJavaScript :: Idl -> Doc
+ppPureJavaScript idl =
+        jsHeader
+    $+$ jsMethods
+    $+$ jsFooter
+  where
+    jsHeader = vcat (map text
+        ["// Auto generated: don't change manually, use purescript-webgl-generator to modify!!",
+         "/* global exports */",
+         "",
+         "// module Graphics.WebGLRaw",
+         "",
+         "  \"use strict\";",
+         "",
+         ""])
+    jsFooter = text ""
+    jsMethods = nest 2 (vcat $ map (\f -> printJSMethod f (methodArgs f))
+                                $ nubBy (\t1 t2-> methodName t1 == methodName t2)
+                                    [c | c <- idl , isUsableFunction c])
+    printJSMethod f args =
+        nest 2 (text "exports." <> text (methodName f) <> text "_" <+> text "=" <+> text "function" <+>
+            (parens (if null (methodArgs f)
+                        then empty
+                        else text (argName (head (methodArgs f)))))
+            $$ braces (nest 2 (printJavascriptRest f (methodArgs f))) $$ semi)
+        $$ text ""
+    printJavascriptRest f (hd:tl) =
+        text "return" <+> text "function"
+            <> parens (if null tl
+                        then empty
+                        else text (argName (head tl)))
+            $$ braces (nest 2 (printJavascriptRest f tl)) $$ semi
+    printJavascriptRest f [] | typeName (methodRetType f) == "void" =
+        text "gl." <> text (methodName f) <> parens
+            (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))) <>  semi
+                             | otherwise =
+        text "var res = gl." <> text (methodName f) <> parens
+            (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))) <>  semi
+        $$ text "if (res === undefined){"
+        $$ text "  throw \"Undefined in " <+> text (methodName f) <> text "\"}" <> semi
+        $$ text "return res" <> semi

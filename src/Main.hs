@@ -39,5 +39,6 @@ main = do
     string <- readFile fp
     case PP.runParser idlParser () "" string of
         Left error -> mapM_ (putStrLn . PP.messageString) (PP.errorMessages error)
-        Right idl -> putStr (render (ppPureScriptFFI idl))
-
+        Right idl -> do
+            writeFile "WebGLRaw.purs" (render (ppPureScriptFFI idl))
+            writeFile "WebGLRaw.js" (render (ppPureJavaScript idl))
