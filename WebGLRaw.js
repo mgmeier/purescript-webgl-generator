@@ -3,7 +3,6 @@
 
 // module Graphics.WebGLRaw
 
-(function () {
   "use strict";
 
 
@@ -1104,4 +1103,3 @@
      ;}
     ;
   
-})();
