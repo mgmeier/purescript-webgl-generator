@@ -24,6 +24,7 @@ import Text.PrettyPrint
         (<>), integer, (<+>), text, vcat, ($+$), Doc)
 import Data.List (nubBy, nub)
 import Data.Maybe (isNothing)
+import Data.Function(on)
 
 ppPureScriptFFI :: Idl -> Doc
 ppPureScriptFFI idl =
@@ -41,12 +42,13 @@ ppPureScriptFFI idl =
         "import Control.Monad.Eff.WebGL",
         "import Data.ArrayBuffer.Types",
         "import Data.TypedArray",
+        "import Data.Function",
         "import Prelude",
         "",
         ""] ++ typedefs))
 
-    typeDecls = vcat $ map printTypeDecl $ nubBy (\t1 t2-> typeName t1 == typeName t2)
-                    [t  | d <- idl, t <- extractTypes d, not ((typeName t) `elem` standardTypes)]
+    typeDecls = vcat $ map printTypeDecl $ nubBy ((==) `on` typeName)
+                    [t  | d <- idl, t <- extractTypes d, typeName t `notElem` standardTypes]
     printTypeDecl d = text "foreign import data" <+> text (typeName d) <+> text ":: *"
 
     constants = vcat [printConstant c | c <- idl , isEnum c]
@@ -55,32 +57,34 @@ ppPureScriptFFI idl =
         $+$ (text (makeConstantName n) <+> text "=" <+> integer v)
         $+$ text ""
 
-    methods = vcat $ map printMethod $ nubBy (\t1 t2-> methodName t1 == methodName t2)
+    methods = vcat $ map printMethod $ nubBy ((==) `on` methodName)
                     [c | c <- idl , isUsableFunction c]
     printMethod f =
         text "foreign import" <+> text (methodName f) <> text "_" <>
             nest 2 (printPurescriptTypes f)
                 $$ text ""
+
     printPurescriptTypes f | typeName (methodRetType f) == "any" ||
                              typeName (methodRetType f) == "object" =
-        text ":: forall eff ret." <+>
-        sep ((punctuate (text "->") (map (pureScriptType . argType) (methodArgs f)))
-                ++ [(if null (methodArgs f)
-                        then empty
-                        else text "->") <+> parens (
-                        text "Eff (webgl :: WebGl | eff) ret")])
-    printPurescriptTypes f = text ":: forall eff." <+>
-        sep ((punctuate (text "->") (map (pureScriptType . argType) (methodArgs f)))
-                ++ [(if null (methodArgs f)
-                        then empty
-                        else text "->") <+> parens (
+        text ":: forall eff ret." <+> text (fnFrom (length (methodArgs f))) <+>
+        sep (punctuate (text " ") (map (pureScriptType . argType) (methodArgs f)) ++
+                [parens (text "Eff (webgl :: WebGl | eff) ret")])
+
+    printPurescriptTypes f = text ":: forall eff." <+> text (fnFrom (length (methodArgs f))) <+>
+        sep (punctuate (text " ") (map (pureScriptType . argType) (methodArgs f)) ++
+                [parens (
                         text "Eff (webgl :: WebGl | eff)" <+>
                         pureScriptType (methodRetType f))])
+
     pureScriptType Type{typeName = t} | t == "void" = text "Unit"
     pureScriptType Type{typeName = t} | t == "boolean" = text "Boolean"
     pureScriptType Type{typeName = t} | t == "DOMString" = text "String"
     pureScriptType Type{typeName = t} | t == "ArrayBuffer" = text "Float32Array"
     pureScriptType Type{typeName = t} = text t
+
+fnFrom n | n < 11 = "Fn" ++ show n
+         | otherwise = error ("fnFrom called on n > 10 n:" ++ show n)
+
 
 makeConstantName n = '_' : n
 
@@ -96,7 +100,7 @@ extractArgType :: Arg -> Type
 extractArgType Arg{argType = t} = t
 
 isUsableFunction i =
-    isFunction i && and (map (isNothing . typeCondPara . argType) (methodArgs i))
+    isFunction i && all (isNothing . typeCondPara . argType) (methodArgs i)
 
 standardTypes = ["GLenum", "GLboolean", "GLbitfield", "GLbyte","GLshort","GLint",
     "GLsizei","GLintptr","GLsizeiptr","GLubyte","GLushort","GLuint","GLfloat","GLclampf",
@@ -138,25 +142,24 @@ ppPureJavaScript idl =
          ""])
     jsFooter = text ""
     jsMethods = nest 2 (vcat $ map (\f -> printJSMethod f (methodArgs f))
-                                $ nubBy (\t1 t2-> methodName t1 == methodName t2)
+                                $ nubBy ((==) `on` methodName)
                                     [c | c <- idl , isUsableFunction c])
     printJSMethod f args =
-        nest 2 (text "exports." <> text (methodName f) <> text "_" <+> text "=" <+> text "function" <+>
-            (parens (if null (methodArgs f)
-                        then empty
-                        else text (argName (head (methodArgs f)))))
-            $$ braces (nest 2 (printJavascriptRest f (methodArgs f))) $$ semi)
-        $$ text ""
-    printJavascriptRest f (hd:tl) =
-        text "return" <+> text "function"
-            <> parens (if null tl
-                        then empty
-                        else text (argName (head tl)))
-            $$ braces (nest 2 (printJavascriptRest f tl)) $$ semi
-    printJavascriptRest f [] | typeName (methodRetType f) == "void" =
+        nest 2 (text "exports." <> text (methodName f) <> text "_" <+> text "=" <+>
+            (if null (methodArgs f)
+                then text "function () "
+                else text "function" <+>
+                        parens (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))))
+                $$ if not (null (methodArgs f))
+                    then braces (nest 2 (text "return function ()")
+                         $$ braces (nest 2 (printJavascriptRest f)) $$ semi)
+                    else braces (nest 2 (printJavascriptRest f)) $$ semi
+        $$ text "")
+
+    printJavascriptRest f | typeName (methodRetType f) == "void" =
         text "gl." <> text (methodName f) <> parens
             (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))) <>  semi
-                             | otherwise =
+                          | otherwise =
         text "var res = gl." <> text (methodName f) <> parens
             (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))) <>  semi
         $$ text "if (res === undefined){"
