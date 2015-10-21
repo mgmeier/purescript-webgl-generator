@@ -150,10 +150,8 @@ ppPureJavaScript idl =
                 then text "function () "
                 else text "function" <+>
                         parens (hcat (punctuate (text ",") (map (text . argName) (methodArgs f)))))
-                $$ if not (null (methodArgs f))
-                    then braces (nest 2 (text "return function ()")
-                         $$ braces (nest 2 (printJavascriptRest f)) $$ semi)
-                    else braces (nest 2 (printJavascriptRest f)) $$ semi
+                $$ braces (nest 2 (text "return function ()")
+                                $$ braces (nest 2 (printJavascriptRest f)) $$ semi)
         $$ text "")
 
     printJavascriptRest f | typeName (methodRetType f) == "void" =
