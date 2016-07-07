@@ -1,11 +1,10 @@
 -- Auto generated: don't change manually, use purescript-webgl-generator to modify!!
 module Graphics.WebGLRaw where
 
-import Control.Monad.Eff
-import Control.Monad.Eff.WebGL
-import Data.ArrayBuffer.Types
-import Data.TypedArray
 import Prelude
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.WebGL (WebGl)
+import Data.ArrayBuffer.Types (Int32Array, Float32Array)
 
 
 type GLenum = Int

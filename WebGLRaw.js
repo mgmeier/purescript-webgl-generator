@@ -5,7 +5,6 @@
 
   "use strict";
 
-
     exports.getContextAttributes_ = function ()
     {var res = gl.getContextAttributes();
      if (res === undefined){
